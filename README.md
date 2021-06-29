@@ -42,7 +42,8 @@ var chunks = new FSChunkStore(10, {
     { path: 'folder/file1.txt', length: 12 },
     { path: 'folder/file2.txt', length: 8 },
     { path: 'folder/file3.txt', length: 30 }
-  ]
+  ],
+  path: 'C:/user/' // optional: if specified the file paths will be treated as relative, not absolute
 })
 ```
 

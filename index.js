@@ -8,7 +8,6 @@ const path = require('path')
 const queueMicrotask = require('queue-microtask')
 const raf = require('random-access-file')
 const randombytes = require('randombytes')
-const rimraf = require('rimraf')
 const thunky = require('thunky')
 
 let TMP
@@ -25,6 +24,7 @@ function Storage (chunkLength, opts) {
 
   self.chunkLength = Number(chunkLength)
   if (!self.chunkLength) throw new Error('First argument must be a chunk length')
+  self.path = opts.path
 
   if (opts.files) {
     if (!Array.isArray(opts.files)) {
@@ -41,6 +41,7 @@ function Storage (chunkLength, opts) {
           file.offset = prevFile.offset + prevFile.length
         }
       }
+      if (self.path) file.path = path.resolve(path.join(opts.path, file.path))
       return file
     })
     self.length = self.files.reduce(function (sum, file) { return sum + file.length }, 0)
@@ -49,9 +50,10 @@ function Storage (chunkLength, opts) {
     }
   } else {
     const len = Number(opts.length) || Infinity
+    if (!self.path) self.path = path.join(TMP, 'fs-chunk-store', randombytes(20).toString('hex'))
     self.files = [{
       offset: 0,
-      path: path.resolve(opts.path || path.join(TMP, 'fs-chunk-store', randombytes(20).toString('hex'))),
+      path: self.path,
       length: len
     }]
     self.length = len
@@ -223,12 +225,20 @@ Storage.prototype.close = function (cb) {
 Storage.prototype.destroy = function (cb) {
   const self = this
   self.close(function () {
-    const tasks = self.files.map(function (file) {
-      return function (cb) {
-        rimraf(file.path, { maxBusyTries: 10 }, cb)
-      }
-    })
-    parallel(tasks, cb)
+    if (self.path) {
+      fs.rm(self.path, { recursive: true, maxRetries: 10 }, err => {
+        err && err.code === 'ENOENT' ? cb() : cb(err)
+      })
+    } else {
+      const tasks = self.files.map(function (file) {
+        return function (cb) {
+          fs.rm(file.path, { recursive: true, maxRetries: 10 }, err => {
+            err && err.code === 'ENOENT' ? cb() : cb(err)
+          })
+        }
+      })
+      parallel(tasks, cb)
+    }
   })
 }
 
