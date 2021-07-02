@@ -41,7 +41,7 @@ function Storage (chunkLength, opts) {
           file.offset = prevFile.offset + prevFile.length
         }
       }
-      if (self.path) file.path = path.resolve(path.join(opts.path, file.path))
+      if (self.path) file.path = path.resolve(path.join(self.path, file.path))
       return file
     })
     self.length = self.files.reduce(function (sum, file) { return sum + file.length }, 0)
@@ -50,7 +50,7 @@ function Storage (chunkLength, opts) {
     }
   } else {
     const len = Number(opts.length) || Infinity
-    if (!self.path) self.path = path.join(TMP, 'fs-chunk-store', randombytes(20).toString('hex'))
+    if (!self.path) self.path = path.resolve(path.join(TMP, 'fs-chunk-store', randombytes(20).toString('hex')))
     self.files = [{
       offset: 0,
       path: self.path,
